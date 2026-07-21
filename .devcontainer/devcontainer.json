@@ -1,0 +1,15 @@
+{
+    "name": "Go Dev Container",
+    "dockerComposeFile": [
+        "../../docker-compose.yaml"
+    ],
+    "service": "backend",
+    "workspaceFolder": "/app",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "golang.go" // ติดตั้ง Extension Go ไว้ข้างใน Container เลย
+            ]
+        }
+    }
+}

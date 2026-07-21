@@ -1,0 +1,10 @@
+FROM golang:1.21.0-alpine
+WORKDIR /app
+#ติดตั้ง git
+RUN apk add --no-cache git
+
+# 3. ติดตั้ง Air เวอร์ชันที่รองรับ Go 1.21 (แนะนำ v1.49.0 หรือ v1.51.0)
+RUN go install github.com/cosmtrek/air@v1.49.0
+COPY . .
+# สั่งให้รัน air ทิ้งไว้เลย
+CMD ["air"]
