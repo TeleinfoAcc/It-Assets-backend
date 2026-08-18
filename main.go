@@ -36,6 +36,7 @@ func main() {
 		protected.GET("/getAssetStatus", handlers.GetAssetStatus)
 		protected.GET("/getSites", handlers.GetSites)
 		protected.GET("/getRooms", handlers.GetRooms)
+		protected.GET("/getDashboardData", handlers.GetDashboard)
 		protected.GET("/getAssets/:id", handlers.GetAssetById)
 		protected.POST("/updateAssets", handlers.UpdateAsset)
 		protected.POST("/updateAssetsRent", handlers.UpdateAssetRent)
