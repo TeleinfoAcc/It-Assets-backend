@@ -18,55 +18,78 @@ func GetDashboard(c *gin.Context) {
 	var notebookOnStockCount int64
 	var notebookBrokeCount int64
 
-	var projcount []struct {
+	var AIOcountbyProj []struct {
 		Asset_project string `json:"asset_project"`
 		Count         int64  `json:"count"`
 	}
 
-	if err := database.DB.Model(&models.AbcAssetRent{}).Count(&totalCount).Error; err != nil {
+	var NBcountbuProj []struct {
+		Asset_project string `json:"asset_project"`
+		Count         int64  `json:"count"`
+	}
+
+	// Count total assets
+	if err := database.DB.Model(&models.AbcAssetRent{}).Where("asset_status != ?", "5").Count(&totalCount).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูลได้", "details": err.Error()})
 		return
 	}
 
-	if err := database.DB.Model(&models.AbcAssetRent{}).Where("com_type = ?", "AIO").Count(&aioCount).Error; err != nil {
+	// Count AIO assets
+	if err := database.DB.Model(&models.AbcAssetRent{}).Where("com_type = ? AND asset_status != ?", "AIO", "5").Count(&aioCount).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูลได้", "details": err.Error()})
 		return
 	}
 
+	// Count AIO assets in use
 	if err := database.DB.Model(&models.AbcAssetRent{}).Where("com_type = ? AND asset_status = ?", "AIO", "1").Count(&aioUsageCount).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูลได้", "details": err.Error()})
 		return
 	}
 
+	// Count AIO assets in stock
 	if err := database.DB.Model(&models.AbcAssetRent{}).Where("com_type = ? AND asset_status = ?", "AIO", "0").Count(&aioOnStockCount).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูลได้", "details": err.Error()})
 		return
 	}
 
+	// Count AIO assets that are broken
 	if err := database.DB.Model(&models.AbcAssetRent{}).Where("com_type = ? AND asset_status IN ?", "AIO", []string{"9", "3"}).Count(&aioBrokeCount).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูลได้", "details": err.Error()})
 		return
 	}
 
-	if err := database.DB.Model(&models.AbcAssetRent{}).Where("com_type = ?", "NB").Count(&notebookCount).Error; err != nil {
+	// Count Notebook assets
+	if err := database.DB.Model(&models.AbcAssetRent{}).Where("com_type = ? AND asset_status != ?", "NB", "5").Count(&notebookCount).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูลได้", "details": err.Error()})
 		return
 	}
 
+	// Count Notebook assets in use
 	if err := database.DB.Model(&models.AbcAssetRent{}).Where("com_type = ? AND asset_status = ?", "NB", "1").Count(&notebookUsageCount).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูลได้", "details": err.Error()})
 		return
 	}
+
+	// Count Notebook assets in stock
 	if err := database.DB.Model(&models.AbcAssetRent{}).Where("com_type = ? AND asset_status = ?", "NB", "0").Count(&notebookOnStockCount).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูลได้", "details": err.Error()})
 		return
 	}
+
+	// Count Notebook assets that are broken
 	if err := database.DB.Model(&models.AbcAssetRent{}).Where("com_type = ? AND asset_status IN ?", "NB", []string{"9", "3"}).Count(&notebookBrokeCount).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูลได้", "details": err.Error()})
 		return
 	}
 
-	if err := database.DB.Model(&models.AbcAssetRent{}).Select("asset_project, COUNT(*) as count").Group("asset_project").Scan(&projcount).Error; err != nil {
+	//AIO count by project
+	if err := database.DB.Model(&models.AbcAssetRent{}).Select("asset_project, COUNT(*) as count").Where("com_type = ? AND asset_status != ?", "AIO", "5").Group("asset_project").Scan(&AIOcountbyProj).Error; err != nil {
+		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูลได้", "details": err.Error()})
+		return
+	}
+
+	//Notebook count by project
+	if err := database.DB.Model(&models.AbcAssetRent{}).Select("asset_project, COUNT(*) as count").Where("com_type = ? AND asset_status != ?", "NB", "5").Group("asset_project").Scan(&NBcountbuProj).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูลได้", "details": err.Error()})
 		return
 	}
@@ -81,6 +104,7 @@ func GetDashboard(c *gin.Context) {
 		"notebook_usage_count":    notebookUsageCount,
 		"notebook_on_stock_count": notebookOnStockCount,
 		"notebook_broke_count":    notebookBrokeCount,
-		"project_count":           projcount,
+		"aio_project_count":       AIOcountbyProj,
+		"notebook_project_count":  NBcountbuProj,
 	})
 }

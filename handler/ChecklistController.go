@@ -95,7 +95,7 @@ func GetRooms(c *gin.Context) {
 func GetAssets(c *gin.Context) {
 
 	var Assets []models.AbcAsset
-	if err := database.DB.Order("com_name asc").Find(&Assets).Error; err != nil {
+	if err := database.DB.Preload("Asset_status_name").Order("com_name asc").Find(&Assets).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูล Assets ได้", "details": err.Error()})
 		return
 	}
@@ -106,7 +106,7 @@ func GetAssets(c *gin.Context) {
 func GetAssetsRent(c *gin.Context) {
 
 	var AssetsRent []models.AbcAssetRent
-	if err := database.DB.Order("com_name asc").Find(&AssetsRent).Error; err != nil {
+	if err := database.DB.Preload("Asset_status_name").Order("com_name asc").Find(&AssetsRent).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูล Assets Rent ได้", "details": err.Error()})
 		return
 	}
@@ -189,41 +189,45 @@ func UpdateAsset(c *gin.Context) {
 }
 
 func UpdateAssetRent(c *gin.Context) {
+
+	agent_id := uint(c.GetFloat64("agent_id"))
+
 	var body struct {
-		It_asset_id    uint   `json:"it_asset_id" gorm:"primaryKey"`
-		Serialnumber   string `json:"serialnumber"`
-		Emp_id         string `json:"emp_id"`
-		Com_name       string `json:"com_name"`
-		Com_local_ip   string `json:"com_local_ip"`
-		Com_join_ip    string `json:"com_join_ip"`
-		Curr_room_code string `json:"curr_room_code"`
-		Com_brand      string `json:"com_brand"`
-		Com_model      string `json:"com_model"`
-		Com_type       string `json:"com_type"`
-		Com_desc1      string `json:"com_desc1"`
-		Com_desc2      string `json:"com_desc2"`
-		Com_desc3      string `json:"com_desc3"`
-		Gl_asset_code  string `json:"gl_asset_code"`
-		Loc_type       string `json:"loc_type"`
-		Create_date    string `json:"create_date"`
-		Mdf_date       string `json:"mdf_date"`
-		Asset_status   uint   `json:"asset_status"`
-		Loc_seat       string `json:"loc_seat"`
-		Location       string `json:"location"`
-		Com_status     string `json:"com_status"`
-		Cap_date       string `json:"cap_date"`
-		Mdf_agent_id   uint   `json:"mdf_agent_id"`
-		Iss_date       string `json:"iss_date"`
-		Return_date    string `json:"return_date"`
-		Asset_type     string `json:"asset_type"`
-		Asset_project  string `json:"asset_project"`
-		Com_hdd        string `json:"com_hdd"`
-		Com_wifi_mac   string `json:"com_wifi_mac"`
-		Com_lan_mac    string `json:"com_lan_mac"`
-		Com_adapt_sn   string `json:"com_adapt_sn"`
-		Com_mouse_sn   string `json:"com_mouse_sn"`
-		Com_ssd        string `json:"com_ssd"`
-		Com_usb_sn     string `json:"com_usb_sn"`
+		It_asset_id       uint   `json:"it_asset_id" gorm:"primaryKey"`
+		Serialnumber      string `json:"serialnumber"`
+		Emp_id            string `json:"emp_id"`
+		Com_name          string `json:"com_name"`
+		Com_local_ip      string `json:"com_local_ip"`
+		Com_join_ip       string `json:"com_join_ip"`
+		Curr_room_code    string `json:"curr_room_code"`
+		Com_brand         string `json:"com_brand"`
+		Com_model         string `json:"com_model"`
+		Com_type          string `json:"com_type"`
+		Com_desc1         string `json:"com_desc1"`
+		Com_desc2         string `json:"com_desc2"`
+		Com_desc3         string `json:"com_desc3"`
+		Gl_asset_code     string `json:"gl_asset_code"`
+		Loc_type          string `json:"loc_type"`
+		Create_date       string `json:"create_date"`
+		Mdf_date          string `json:"mdf_date"`
+		Asset_status      uint   `json:"asset_status"`
+		Loc_seat          string `json:"loc_seat"`
+		Location          string `json:"location"`
+		Com_status        string `json:"com_status"`
+		Cap_date          string `json:"cap_date"`
+		Mdf_agent_id      uint   `json:"mdf_agent_id"`
+		Iss_date          string `json:"iss_date"`
+		Return_date       string `json:"return_date"`
+		Asset_type        string `json:"asset_type"`
+		Asset_project     string `json:"asset_project"`
+		Com_hdd           string `json:"com_hdd"`
+		Com_wifi_mac      string `json:"com_wifi_mac"`
+		Com_lan_mac       string `json:"com_lan_mac"`
+		Com_adapt_sn      string `json:"com_adapt_sn"`
+		Com_mouse_sn      string `json:"com_mouse_sn"`
+		Com_ssd           string `json:"com_ssd"`
+		Com_usb_sn        string `json:"com_usb_sn"`
+		Asset_status_name string `json:"asset_status_name"`
 	}
 
 	if err := c.BindJSON(&body); err != nil {
@@ -231,7 +235,9 @@ func UpdateAssetRent(c *gin.Context) {
 		return
 	}
 
-	if err := database.DB.Model(&models.AbcAssetRent{}).Where("it_asset_id = ?", body.It_asset_id).Updates(models.AbcAssetRent{
+	tx := database.DB.Begin()
+
+	if err := tx.Model(&models.AbcAssetRent{}).Where("it_asset_id = ?", body.It_asset_id).Updates(models.AbcAssetRent{
 		Com_name:       body.Com_name,
 		Com_type:       body.Com_type,
 		Gl_asset_code:  body.Gl_asset_code,
@@ -264,8 +270,23 @@ func UpdateAssetRent(c *gin.Context) {
 		Com_ssd:        body.Com_ssd,
 		Com_usb_sn:     body.Com_usb_sn,
 	}).Error; err != nil {
+		tx.Rollback()
 		c.JSON(500, gin.H{"error": "ไม่สามารถอัปเดต Asset ได้", "details": err.Error()})
 		return
 	}
+
+	if err := tx.Model(&models.AbcHistory{}).Create(&models.AbcHistory{
+		Agent_id:          agent_id,
+		Asset_status_name: body.Asset_status_name,
+		Com_desc1:         body.Com_desc1,
+		It_asset_id:       body.It_asset_id,
+	}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(500, gin.H{"error": "ไม่สามารถสร้างประวัติ Asset ได้", "details": err.Error()})
+		return
+	}
+
+	tx.Commit()
+
 	c.JSON(200, gin.H{"message": "อัปเดต Asset สำเร็จ"})
 }
