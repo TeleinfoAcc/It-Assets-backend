@@ -40,6 +40,8 @@ func main() {
 		protected.GET("/getAssets/:id", handlers.GetAssetById)
 		protected.POST("/updateAssets", handlers.UpdateAsset)
 		protected.POST("/updateAssetsRent", handlers.UpdateAssetRent)
+		protected.GET("/getHistory", handlers.GetHistory)
+		protected.GET("/getHistory/:it_asset_id", handlers.GetHistoryById)
 
 		// protected.DELETE("/users/:id", handlers.DeleteUser)
 	}

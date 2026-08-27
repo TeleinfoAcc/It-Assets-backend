@@ -141,6 +141,9 @@ func GetAssetById(c *gin.Context) {
 }
 
 func UpdateAsset(c *gin.Context) {
+
+	agent_id := uint(c.GetFloat64("agent_id"))
+
 	var body struct {
 		It_asset_id    uint   `json:"it_asset_id"`
 		Gl_asset_code  string `json:"gl_asset_code"`
@@ -165,7 +168,9 @@ func UpdateAsset(c *gin.Context) {
 		return
 	}
 
-	if err := database.DB.Model(&models.AbcAsset{}).Where("it_asset_id = ?", body.It_asset_id).Updates(models.AbcAsset{
+	tx := database.DB.Begin()
+
+	if err := tx.Model(&models.AbcAsset{}).Where("it_asset_id = ?", body.It_asset_id).Updates(models.AbcAsset{
 		Com_name:       body.Com_name,
 		Com_type:       body.Com_type,
 		Gl_asset_code:  body.Gl_asset_code,
@@ -182,9 +187,24 @@ func UpdateAsset(c *gin.Context) {
 		Location:       body.Location,
 		Com_desc1:      body.Com_desc1,
 	}).Error; err != nil {
+		tx.Rollback()
 		c.JSON(500, gin.H{"error": "ไม่สามารถอัปเดต Asset ได้", "details": err.Error()})
 		return
 	}
+
+	if err := tx.Model(&models.AbcHistory{}).Create(&models.AbcHistory{
+		Agent_id:     agent_id,
+		Asset_status: body.Asset_status,
+		Com_desc1:    body.Com_desc1,
+		It_asset_id:  body.It_asset_id,
+	}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(500, gin.H{"error": "ไม่สามารถสร้างประวัติ Asset ได้", "details": err.Error()})
+		return
+	}
+
+	tx.Commit()
+
 	c.JSON(200, gin.H{"message": "อัปเดต Asset สำเร็จ"})
 }
 
@@ -276,10 +296,10 @@ func UpdateAssetRent(c *gin.Context) {
 	}
 
 	if err := tx.Model(&models.AbcHistory{}).Create(&models.AbcHistory{
-		Agent_id:          agent_id,
-		Asset_status_name: body.Asset_status_name,
-		Com_desc1:         body.Com_desc1,
-		It_asset_id:       body.It_asset_id,
+		Agent_id:     agent_id,
+		Asset_status: body.Asset_status,
+		Com_desc1:    body.Com_desc1,
+		It_asset_id:  body.It_asset_id,
 	}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(500, gin.H{"error": "ไม่สามารถสร้างประวัติ Asset ได้", "details": err.Error()})
@@ -289,4 +309,121 @@ func UpdateAssetRent(c *gin.Context) {
 	tx.Commit()
 
 	c.JSON(200, gin.H{"message": "อัปเดต Asset สำเร็จ"})
+}
+
+func GetHistory(c *gin.Context) {
+
+	type HistoryResponse struct {
+		HisID           uint   `json:"his_id"`
+		AgentID         uint   `json:"agent_id"`
+		AssetStatus     uint   `json:"asset_status"`
+		ComDesc1        string `json:"com_desc1"`
+		ItAssetID       uint   `json:"it_asset_id"`
+		ComName         string `json:"com_name"`
+		Serialnumber    string `json:"serialnumber"`
+		FirstNameTH     string `json:"first_name_th"`
+		LastNameTH      string `json:"last_name_th"`
+		AssetStatusName string `json:"asset_status_name"`
+	}
+
+	var history []HistoryResponse
+
+	err := database.DB.
+		Table("abcinv.abc_history AS h").
+		Select(`
+            h.his_id,
+            h.agent_id,
+            h.asset_status,
+            h.com_desc1,
+            h.it_asset_id,
+            COALESCE(asset.com_name, asset_rent.com_name) AS com_name,
+            COALESCE(asset.serialnumber, asset_rent.serialnumber) AS serialnumber,
+            agent.first_name_th,
+            agent.last_name_th,
+			abc_asset_status.asset_status_name
+        `).
+		Joins(`
+            LEFT JOIN qamon.iam_agents AS agent
+                ON agent.agent_id = h.agent_id
+        `).
+		Joins(`
+            LEFT JOIN abcinv.abc_asset AS asset
+                ON asset.it_asset_id = h.it_asset_id
+        `).
+		Joins(`
+            LEFT JOIN abcinv.abc_asset_rent AS asset_rent
+                ON asset_rent.it_asset_id = h.it_asset_id
+        `).
+		Joins(`
+            LEFT JOIN abcinv.abc_asset_status
+                ON abc_asset_status.asset_status = h.asset_status
+        `).
+		Find(&history).Error
+
+	if err != nil {
+		c.JSON(500, gin.H{
+			"error":   "ไม่สามารถดึงประวัติ Asset ได้",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{"history": history})
+}
+
+func GetHistoryById(c *gin.Context) {
+
+	itAssetID := c.Param("it_asset_id")
+
+	type HistoryResponse struct {
+		HisID        uint   `json:"his_id"`
+		AgentID      uint   `json:"agent_id"`
+		AssetStatus  uint   `json:"asset_status"`
+		ComDesc1     string `json:"com_desc1"`
+		ItAssetID    uint   `json:"it_asset_id"`
+		ComName      string `json:"com_name"`
+		Serialnumber string `json:"serialnumber"`
+		FirstNameTH  string `json:"first_name_th"`
+		LastNameTH   string `json:"last_name_th"`
+	}
+
+	var history []HistoryResponse
+
+	err := database.DB.
+		Table("abcinv.abc_history AS h").
+		Select(`
+            h.his_id,
+            h.agent_id,
+            h.asset_status,
+            h.com_desc1,
+            h.it_asset_id,
+            COALESCE(asset.com_name, asset_rent.com_name) AS com_name,
+            COALESCE(asset.serialnumber, asset_rent.serialnumber) AS serialnumber,
+            agent.first_name_th,
+            agent.last_name_th
+        `).
+		Joins(`
+            LEFT JOIN qamon.iam_agents AS agent
+                ON agent.agent_id = h.agent_id
+        `).
+		Joins(`
+            LEFT JOIN abcinv.abc_asset AS asset
+                ON asset.it_asset_id = h.it_asset_id
+        `).
+		Joins(`
+            LEFT JOIN abcinv.abc_asset_rent AS asset_rent
+                ON asset_rent.it_asset_id = h.it_asset_id
+        `).
+		Where("h.it_asset_id = ?", itAssetID).
+		Find(&history).Error
+
+	if err != nil {
+		c.JSON(500, gin.H{
+			"error":   "ไม่สามารถดึงประวัติ Asset ได้",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{"history": history})
 }
