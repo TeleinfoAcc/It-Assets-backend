@@ -3,6 +3,7 @@ package handlers
 import (
 	"checklist-backend/database"
 	"checklist-backend/models"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -197,6 +198,7 @@ func UpdateAsset(c *gin.Context) {
 		Asset_status: body.Asset_status,
 		Com_desc1:    body.Com_desc1,
 		It_asset_id:  body.It_asset_id,
+		Timestamp:    time.Now(),
 	}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(500, gin.H{"error": "ไม่สามารถสร้างประวัติ Asset ได้", "details": err.Error()})
@@ -300,6 +302,7 @@ func UpdateAssetRent(c *gin.Context) {
 		Asset_status: body.Asset_status,
 		Com_desc1:    body.Com_desc1,
 		It_asset_id:  body.It_asset_id,
+		Timestamp:    time.Now(),
 	}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(500, gin.H{"error": "ไม่สามารถสร้างประวัติ Asset ได้", "details": err.Error()})
@@ -314,16 +317,17 @@ func UpdateAssetRent(c *gin.Context) {
 func GetHistory(c *gin.Context) {
 
 	type HistoryResponse struct {
-		HisID           uint   `json:"his_id"`
-		AgentID         uint   `json:"agent_id"`
-		AssetStatus     uint   `json:"asset_status"`
-		ComDesc1        string `json:"com_desc1"`
-		ItAssetID       uint   `json:"it_asset_id"`
-		ComName         string `json:"com_name"`
-		Serialnumber    string `json:"serialnumber"`
-		FirstNameTH     string `json:"first_name_th"`
-		LastNameTH      string `json:"last_name_th"`
-		AssetStatusName string `json:"asset_status_name"`
+		HisID           uint      `json:"his_id"`
+		AgentID         uint      `json:"agent_id"`
+		AssetStatus     uint      `json:"asset_status"`
+		ComDesc1        string    `json:"com_desc1"`
+		ItAssetID       uint      `json:"it_asset_id"`
+		ComName         string    `json:"com_name"`
+		Serialnumber    string    `json:"serialnumber"`
+		FirstNameTH     string    `json:"first_name_th"`
+		LastNameTH      string    `json:"last_name_th"`
+		AssetStatusName string    `json:"asset_status_name"`
+		Timestamp       time.Time `json:"timestamp"`
 	}
 
 	var history []HistoryResponse
@@ -340,7 +344,8 @@ func GetHistory(c *gin.Context) {
             COALESCE(asset.serialnumber, asset_rent.serialnumber) AS serialnumber,
             agent.first_name_th,
             agent.last_name_th,
-			abc_asset_status.asset_status_name
+			abc_asset_status.asset_status_name,
+			h.timestamp
         `).
 		Joins(`
             LEFT JOIN qamon.iam_agents AS agent
@@ -376,15 +381,16 @@ func GetHistoryById(c *gin.Context) {
 	itAssetID := c.Param("it_asset_id")
 
 	type HistoryResponse struct {
-		HisID        uint   `json:"his_id"`
-		AgentID      uint   `json:"agent_id"`
-		AssetStatus  uint   `json:"asset_status"`
-		ComDesc1     string `json:"com_desc1"`
-		ItAssetID    uint   `json:"it_asset_id"`
-		ComName      string `json:"com_name"`
-		Serialnumber string `json:"serialnumber"`
-		FirstNameTH  string `json:"first_name_th"`
-		LastNameTH   string `json:"last_name_th"`
+		HisID        uint      `json:"his_id"`
+		AgentID      uint      `json:"agent_id"`
+		AssetStatus  uint      `json:"asset_status"`
+		ComDesc1     string    `json:"com_desc1"`
+		ItAssetID    uint      `json:"it_asset_id"`
+		ComName      string    `json:"com_name"`
+		Serialnumber string    `json:"serialnumber"`
+		FirstNameTH  string    `json:"first_name_th"`
+		LastNameTH   string    `json:"last_name_th"`
+		Timestamp    time.Time `json:"timestamp"`
 	}
 
 	var history []HistoryResponse
@@ -400,7 +406,8 @@ func GetHistoryById(c *gin.Context) {
             COALESCE(asset.com_name, asset_rent.com_name) AS com_name,
             COALESCE(asset.serialnumber, asset_rent.serialnumber) AS serialnumber,
             agent.first_name_th,
-            agent.last_name_th
+            agent.last_name_th,
+			h.timestamp
         `).
 		Joins(`
             LEFT JOIN qamon.iam_agents AS agent
@@ -426,4 +433,14 @@ func GetHistoryById(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{"history": history})
+}
+
+func GetProjects(c *gin.Context) {
+
+	var Projects []models.IamProject
+	if err := database.DB.Where("is_active = ?", 1).Order("proj_name asc").Find(&Projects).Error; err != nil {
+		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูล Projects ได้", "details": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"projects": Projects})
 }

@@ -5,12 +5,16 @@ import (
 	"checklist-backend/database"
 	handlers "checklist-backend/handler"
 	"checklist-backend/middleware"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	loc, _ := time.LoadLocation("Asia/Bangkok")
+	time.Local = loc
+
 	cron.StartEmailCron()
 
 	database.Connect()
@@ -42,6 +46,11 @@ func main() {
 		protected.POST("/updateAssetsRent", handlers.UpdateAssetRent)
 		protected.GET("/getHistory", handlers.GetHistory)
 		protected.GET("/getHistory/:it_asset_id", handlers.GetHistoryById)
+		protected.GET("/getProjects", handlers.GetProjects)
+
+		protected.GET("/report/inventory", handlers.GetReportInventory)
+		protected.GET("/report/status-movement", handlers.GetReportStatusMovement)
+		protected.GET("/report/repair", handlers.GetReportRepair)
 
 		// protected.DELETE("/users/:id", handlers.DeleteUser)
 	}
