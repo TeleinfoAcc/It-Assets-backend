@@ -115,7 +115,7 @@ func GetReportInventory(c *gin.Context) {
 
 	if c.Query("detail") == "true" {
 		var items []models.AbcAssetRent
-		q := database.DB.Preload("Asset_status_name")
+		q := database.DB.Joins("Asset_status_name")
 		if v := c.Query("com_type"); v != "" {
 			q = q.Where("com_type = ?", v)
 		}
@@ -126,7 +126,7 @@ func GetReportInventory(c *gin.Context) {
 			q = q.Where("asset_project = ?", v)
 		}
 		if c.Query("include_retired") != "true" {
-			q = q.Where("asset_status::text <> ?", "5")
+			q = q.Where("abcinv.abc_asset_rent.asset_status::text <> ?", "5")
 		}
 		q.Order("com_name asc").Find(&items)
 		resp["items"] = items

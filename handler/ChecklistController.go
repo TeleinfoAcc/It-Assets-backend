@@ -3,6 +3,7 @@ package handlers
 import (
 	"checklist-backend/database"
 	"checklist-backend/models"
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -60,6 +61,19 @@ import (
 // 	c.JSON(201, gin.H{"message": "เพิ่มอุปกรณ์สำเร็จ"})
 // }
 
+func parseISODate(s string) (*time.Time, error) {
+	if s == "" {
+		return nil, nil
+	}
+	layouts := []string{time.RFC3339, "2006-01-02"}
+	for _, layout := range layouts {
+		if t, err := time.Parse(layout, s); err == nil {
+			return &t, nil
+		}
+	}
+	return nil, fmt.Errorf("invalid date format: %q", s)
+}
+
 func GetAssetStatus(c *gin.Context) {
 
 	var AssetStatuses []models.AbcAssetStatus
@@ -96,7 +110,7 @@ func GetRooms(c *gin.Context) {
 func GetAssets(c *gin.Context) {
 
 	var Assets []models.AbcAsset
-	if err := database.DB.Preload("Asset_status_name").Order("com_name asc").Find(&Assets).Error; err != nil {
+	if err := database.DB.Joins("Asset_status_name").Order("com_name asc").Find(&Assets).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูล Assets ได้", "details": err.Error()})
 		return
 	}
@@ -107,7 +121,7 @@ func GetAssets(c *gin.Context) {
 func GetAssetsRent(c *gin.Context) {
 
 	var AssetsRent []models.AbcAssetRent
-	if err := database.DB.Preload("Asset_status_name").Order("com_name asc").Find(&AssetsRent).Error; err != nil {
+	if err := database.DB.Joins("Asset_status_name").Order("com_name asc").Find(&AssetsRent).Error; err != nil {
 		c.JSON(500, gin.H{"error": "ไม่สามารถดึงข้อมูล Assets Rent ได้", "details": err.Error()})
 		return
 	}
@@ -257,40 +271,61 @@ func UpdateAssetRent(c *gin.Context) {
 		return
 	}
 
+	mdfDate, err := parseISODate(body.Mdf_date)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "รูปแบบวันที่ mdf_date ไม่ถูกต้อง", "details": err.Error()})
+		return
+	}
+	capDate, err := parseISODate(body.Cap_date)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "รูปแบบวันที่ cap_date ไม่ถูกต้อง", "details": err.Error()})
+		return
+	}
+	issDate, err := parseISODate(body.Iss_date)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "รูปแบบวันที่ iss_date ไม่ถูกต้อง", "details": err.Error()})
+		return
+	}
+	returnDate, err := parseISODate(body.Return_date)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "รูปแบบวันที่ return_date ไม่ถูกต้อง", "details": err.Error()})
+		return
+	}
+
 	tx := database.DB.Begin()
 
-	if err := tx.Model(&models.AbcAssetRent{}).Where("it_asset_id = ?", body.It_asset_id).Updates(models.AbcAssetRent{
-		Com_name:       body.Com_name,
-		Com_type:       body.Com_type,
-		Gl_asset_code:  body.Gl_asset_code,
-		Com_model:      body.Com_model,
-		Cap_date:       body.Cap_date,
-		Serialnumber:   body.Serialnumber,
-		Com_local_ip:   body.Com_local_ip,
-		Com_join_ip:    body.Com_join_ip,
-		Curr_room_code: body.Curr_room_code,
-		Com_brand:      body.Com_brand,
-		Mdf_date:       body.Mdf_date,
-		Asset_status:   body.Asset_status,
-		Loc_type:       body.Loc_type,
-		Location:       body.Location,
-		Com_desc1:      body.Com_desc1,
-		Com_desc2:      body.Com_desc2,
-		Com_desc3:      body.Com_desc3,
-		Loc_seat:       body.Loc_seat,
-		Com_status:     body.Com_status,
-		Mdf_agent_id:   body.Mdf_agent_id,
-		Iss_date:       body.Iss_date,
-		Return_date:    body.Return_date,
-		Asset_type:     body.Asset_type,
-		Asset_project:  body.Asset_project,
-		Com_hdd:        body.Com_hdd,
-		Com_wifi_mac:   body.Com_wifi_mac,
-		Com_lan_mac:    body.Com_lan_mac,
-		Com_adapt_sn:   body.Com_adapt_sn,
-		Com_mouse_sn:   body.Com_mouse_sn,
-		Com_ssd:        body.Com_ssd,
-		Com_usb_sn:     body.Com_usb_sn,
+	if err := tx.Model(&models.AbcAssetRent{}).Where("it_asset_id = ?", body.It_asset_id).Updates(map[string]any{
+		"com_name":       body.Com_name,
+		"com_type":       body.Com_type,
+		"gl_asset_code":  body.Gl_asset_code,
+		"com_model":      body.Com_model,
+		"cap_date":       capDate,
+		"serialnumber":   body.Serialnumber,
+		"com_local_ip":   body.Com_local_ip,
+		"com_join_ip":    body.Com_join_ip,
+		"curr_room_code": body.Curr_room_code,
+		"com_brand":      body.Com_brand,
+		"mdf_date":       mdfDate,
+		"asset_status":   body.Asset_status,
+		"loc_type":       body.Loc_type,
+		"location":       body.Location,
+		"com_desc1":      body.Com_desc1,
+		"com_desc2":      body.Com_desc2,
+		"com_desc3":      body.Com_desc3,
+		"loc_seat":       body.Loc_seat,
+		"com_status":     body.Com_status,
+		"mdf_agent_id":   body.Mdf_agent_id,
+		"iss_date":       issDate,
+		"return_date":    returnDate,
+		"asset_type":     body.Asset_type,
+		"asset_project":  body.Asset_project,
+		"com_hdd":        body.Com_hdd,
+		"com_wifi_mac":   body.Com_wifi_mac,
+		"com_lan_mac":    body.Com_lan_mac,
+		"com_adapt_sn":   body.Com_adapt_sn,
+		"com_mouse_sn":   body.Com_mouse_sn,
+		"com_ssd":        body.Com_ssd,
+		"com_usb_sn":     body.Com_usb_sn,
 	}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(500, gin.H{"error": "ไม่สามารถอัปเดต Asset ได้", "details": err.Error()})

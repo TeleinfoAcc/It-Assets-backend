@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type AbcAssetRent struct {
 	It_asset_id       uint           `json:"it_asset_id" gorm:"primaryKey"`
 	Serialnumber      string         `json:"serialnumber"`
@@ -16,16 +18,16 @@ type AbcAssetRent struct {
 	Com_desc3         string         `json:"com_desc3"`
 	Gl_asset_code     string         `json:"gl_asset_code"`
 	Loc_type          string         `json:"loc_type"`
-	Create_date       string         `json:"create_date"`
-	Mdf_date          string         `json:"mdf_date"`
+	Create_date       *time.Time     `json:"create_date"`
+	Mdf_date          *time.Time     `json:"mdf_date"`
 	Asset_status      uint           `json:"asset_status"`
 	Loc_seat          string         `json:"loc_seat"`
 	Location          string         `json:"location"`
 	Com_status        string         `json:"com_status"`
-	Cap_date          string         `json:"cap_date"`
+	Cap_date          *time.Time     `json:"cap_date"`
 	Mdf_agent_id      uint           `json:"mdf_agent_id"`
-	Iss_date          string         `json:"iss_date"`
-	Return_date       string         `json:"return_date"`
+	Iss_date          *time.Time     `json:"iss_date"`
+	Return_date       *time.Time     `json:"return_date"`
 	Asset_type        string         `json:"asset_type"`
 	Asset_project     string         `json:"asset_project"`
 	Com_hdd           string         `json:"com_hdd"`
